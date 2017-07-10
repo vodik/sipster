@@ -62,32 +62,39 @@ class UserAgent:
             self.dialog = await self._get_dialog()
         return self.dialog
 
-    async def recv(self, method: Union[str, int],
-                   ignore: List[int]=[]):
+    async def recv(self, msg_type):
         dialog = await self.get_dialog()
-
-        while True:
-            msg = await self.queue.get()
-            if not ignore:
-                break
-            elif msg.status_code not in ignore:
-                break
-
-        if isinstance(method, int):
-            if msg.status_code != method:
-                raise RuntimeError(f'Unexpected message, expected {method}, '
-                                   f'found {msg.status_code}')
-        else:
-            if msg.method != method:
-                raise RuntimeError(f'Unexpected message, expected {method}, '
-                                   f'found {msg.method}')
-
+        msg = await self.queue.get()
+        if not isinstance(msg, msg_type):
+            raise RuntimeError('Recieved unexpected message type')
         return msg
 
-    async def send(self, method: Union[str, int], *, headers=None,
-                   payload: str=None) -> None:
+    async def recv_request(self, method):
+        msg = await self.recv(aiosip.Request)
+        if msg.method != method:
+            raise RuntimeError(f'Unexpected message, expected {method}, '
+                               f'found {msg.method}')
+        return msg
+
+    async def recv_response(self, status_code, ignore=[]):
+        while True:
+            msg = await self.recv(aiosip.Response)
+            if msg.status_code not in ignore:
+                break
+
+        if msg.status_code != status_code:
+            raise RuntimeError(f'Unexpected message, expected {status_code}, '
+                               f'found {msg.status_code}')
+        return msg
+
+    async def send_request(self, method: str, *, headers=None):
         dialog = await self.get_dialog()
         dialog.send_message(method, headers=headers)
+
+    async def send_response(self, status: str, *, headers=None):
+        dialog = await self.get_dialog()
+        status_code, status_message = status.split()
+        dialog.send_reply(int(status_code), status_message, headers=headers)
 
 
 class Client(UserAgent):
