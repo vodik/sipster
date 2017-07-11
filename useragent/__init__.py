@@ -20,8 +20,11 @@ class Application(aiosip.Application):
         self.dialog_ready = asyncio.Future()
 
     async def handle_incoming(self, protocol, msg, addr, route):
-        local_addr = (msg.to_details['uri']['host'],
-                      msg.to_details['uri']['port'])
+        if self.agent.local_addr:
+            local_addr = self.agent.local_addr
+        else:
+            local_addr = (msg.to_details['uri']['host'],
+                          msg.to_details['uri']['port'])
 
         remote_addr = (msg.contact_details['uri']['host'],
                        msg.contact_details['uri']['port'])
@@ -74,6 +77,7 @@ class UserAgent:
         if msg.method != method:
             raise RuntimeError(f'Unexpected message, expected {method}, '
                                f'found {msg.method}')
+        print("Recieved:", str(msg).splitlines()[0])
         return msg
 
     async def recv_response(self, status_code, ignore=[]):
@@ -85,6 +89,7 @@ class UserAgent:
         if msg.status_code != status_code:
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
                                f'found {msg.status_code}')
+        print("Recieved:", str(msg).splitlines()[0])
         return msg
 
     async def send_request(self, method: str, *, headers=None):
