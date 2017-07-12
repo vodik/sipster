@@ -19,7 +19,7 @@ class Application(aiosip.Application):
         self.agent = agent
         self.dialog_ready = asyncio.Future()
 
-    async def handle_incoming(self, protocol, msg, addr, route):
+    async def handle_incoming(self, protocol, msg, addr):
         if self.agent.local_addr:
             local_addr = self.agent.local_addr
         else:
@@ -44,6 +44,14 @@ class Application(aiosip.Application):
         self._dialogs[msg.headers['Call-ID']] = dlg
         dlg.receive_message(msg)
         self.dialog_ready.set_result(dlg)
+
+    def dispatch(self, protocol, msg, addr):
+        key = msg.headers['Call-ID']
+        if key in self._dialogs:
+            self._dialogs[key].receive_message(msg)
+        else:
+            self.loop.call_soon(asyncio.async,
+                                self.handle_incoming(protocol, msg, addr))
 
 
 class UserAgent:
