@@ -13,6 +13,28 @@ class Dialog(aiosip.Dialog):
         self.agent.queue.put_nowait(msg)
 
 
+class Request:
+    def __init__(self, agent, data):
+        self.agent = agent
+        self.data = data
+
+    def __getattr__(self, key):
+        return getattr(self.data, key)
+
+    async def respond(self, *args, **kwargs):
+        headers = kwargs.pop('headers', {})
+        headers['CSeq'] = self.data.headers['CSeq']
+        return await self.agent.send_response(*args, **kwargs, headers=headers)
+
+    def __str__(self):
+        return str(self.data)
+
+    def __repr__(self):
+        message = str(self)
+        first_line = message[:message.find('\r\n')]
+        return f'{self.__class__.__name__}<{first_line}>'
+
+
 class Application(aiosip.Application):
     def __init__(self, agent):
         super().__init__()
@@ -91,7 +113,7 @@ class UserAgent:
             raise RuntimeError(f'Unexpected message, expected {method}, '
                                f'found {msg.method}')
         print("Recieved:", str(msg).splitlines()[0])
-        return msg
+        return Request(self, msg)
 
     async def recv_response(self, status_code, ignore=[]):
         while True:
