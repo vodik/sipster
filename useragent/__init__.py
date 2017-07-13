@@ -70,18 +70,23 @@ class UserAgent:
 
     async def get_dialog(self):
         if not self.dialog:
-            self.dialog = await self._get_dialog()
+            self.dialog = await asyncio.wait_for(self._get_dialog(), timeout=5)
         return self.dialog
 
     async def recv(self, msg_type):
         dialog = await self.get_dialog()
-        msg = await self.queue.get()
-        if not isinstance(msg, msg_type):
-            raise RuntimeError('Recieved unexpected message type')
+        while True:
+            msg = await asyncio.wait_for(self.queue.get(), timeout=5)
+            if isinstance(msg, msg_type):
+                break
         return msg
 
-    async def recv_request(self, method):
-        msg = await self.recv(aiosip.Request)
+    async def recv_request(self, method, ignore=[]):
+        while True:
+            msg = await self.recv(aiosip.Request)
+            if msg.method not in ignore:
+                break
+
         if msg.method != method:
             raise RuntimeError(f'Unexpected message, expected {method}, '
                                f'found {msg.method}')
