@@ -21,10 +21,33 @@ class Request:
     def __getattr__(self, key):
         return getattr(self.data, key)
 
-    async def respond(self, *args, **kwargs):
+    def respond(self, *args, **kwargs):
         headers = kwargs.pop('headers', {})
         headers['CSeq'] = self.data.headers['CSeq']
-        return await self.agent.send_response(*args, **kwargs, headers=headers)
+        return self.agent.send_response(*args, **kwargs, headers=headers)
+
+    def __str__(self):
+        return str(self.data)
+
+    def __repr__(self):
+        message = str(self)
+        first_line = message[:message.find('\r\n')]
+        return f'{self.__class__.__name__}<{first_line}>'
+
+
+class Response:
+    def __init__(self, agent, data):
+        self.agent = agent
+        self.data = data
+
+    def __getattr__(self, key):
+        return getattr(self.data, key)
+
+    def ack(self, *args, **kwargs):
+        headers = kwargs.pop('headers', {})
+        cseq, _, _ = self.data.headers['CSeq'].partition(' ')
+        headers['CSeq'] = f'{cseq} ACK'
+        return self.agent.send_request('ACK', *args, **kwargs, headers=headers)
 
     def __str__(self):
         return str(self.data)
@@ -42,6 +65,9 @@ class Application(aiosip.Application):
         self.dialog_ready = asyncio.Future()
 
     async def handle_incoming(self, protocol, msg, addr):
+        if self.dialog_ready.done():
+            return
+
         if self.agent.local_addr:
             local_addr = self.agent.local_addr
         else:
@@ -56,6 +82,7 @@ class Application(aiosip.Application):
                      app=self,
                      from_uri=msg.headers['From'],
                      to_uri=msg.headers['To'],
+                     contact_uri=self.agent.contact_uri,
                      call_id=msg.headers['Call-ID'],
                      protocol=proto,
                      local_addr=local_addr,
@@ -82,6 +109,7 @@ class UserAgent:
         self.app = Application(self)
         self.dialog = None
         self.queue = asyncio.Queue()
+        self.cseq = 1
 
         self.to_uri = to_uri
         self.from_uri = from_uri
@@ -92,13 +120,13 @@ class UserAgent:
 
     async def get_dialog(self):
         if not self.dialog:
-            self.dialog = await asyncio.wait_for(self._get_dialog(), timeout=5)
+            self.dialog = await asyncio.wait_for(self._get_dialog(), timeout=30)
         return self.dialog
 
     async def recv(self, msg_type):
         dialog = await self.get_dialog()
         while True:
-            msg = await asyncio.wait_for(self.queue.get(), timeout=5)
+            msg = await asyncio.wait_for(self.queue.get(), timeout=30)
             if isinstance(msg, msg_type):
                 break
         return msg
@@ -109,13 +137,20 @@ class UserAgent:
             if msg.method not in ignore:
                 break
 
+        if not self.cseq:
+            cseq, _, _ = msg.headers['CSeq'].partition(' ')
+            self.cseq = int(cseq)
+
         if msg.method != method:
             raise RuntimeError(f'Unexpected message, expected {method}, '
                                f'found {msg.method}')
         print("Recieved:", str(msg).splitlines()[0])
         return Request(self, msg)
 
-    async def recv_response(self, status_code, ignore=[]):
+    async def recv_response(self, status, ignore=[]):
+        status_code, status_message = status.split(' ', 1)
+        status_code = int(status_code)
+
         while True:
             msg = await self.recv(aiosip.Response)
             if msg.status_code not in ignore:
@@ -125,16 +160,36 @@ class UserAgent:
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
                                f'found {msg.status_code}')
         print("Recieved:", str(msg).splitlines()[0])
-        return msg
+        return Response(self, msg)
 
-    async def send_request(self, method: str, *, headers=None):
+    async def send_request(self, method: str, *, headers=None, **kwargs):
         dialog = await self.get_dialog()
-        dialog.send_message(method, headers=headers)
+        if not headers:
+            headers = {}
 
-    async def send_response(self, status: str, *, headers=None):
+        if not 'CSeq' in headers:
+            self.cseq += 1
+            headers['CSeq'] = f'{self.cseq} {method}'
+        else:
+            cseq, _, _ = headers['CSeq'].partition(' ')
+            self.cseq = int(cseq)
+
+        print("Sending:", method)
+        dialog.send_message(method, headers=headers, **kwargs)
+
+    async def send_response(self, status: str, *, headers=None, **kwargs):
         dialog = await self.get_dialog()
-        status_code, status_message = status.split()
-        dialog.send_reply(int(status_code), status_message, headers=headers)
+        status_code, status_message = status.split(' ', 1)
+
+        print("Sending:", status_code)
+        dialog.send_reply(int(status_code), status_message, headers=headers, **kwargs)
+
+    def close(self):
+        if self.dialog:
+            self.dialog.close()
+            for transport in  self.app._transports.values():
+                transport.close()
+            self.dialog = None
 
 
 class Client(UserAgent):

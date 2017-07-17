@@ -1,5 +1,4 @@
 import asyncio
-import logging
 
 from useragent import Client, Server
 
@@ -19,7 +18,7 @@ async def client(ua):
     await ua.recv_response(200, ignore=[100, 180])
     await ua.send_request('ACK')
 
-    await asyncio.sleep(5)
+    await asyncio.sleep(1)
 
     await ua.send_request('BYE')
     await ua.recv_response(200)
@@ -37,8 +36,6 @@ async def fastanswer():
     await uas.listen()
     await asyncio.gather(client(uac), server(uas))
 
-
-logging.basicConfig(level=logging.DEBUG)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(fastanswer())
