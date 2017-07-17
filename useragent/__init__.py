@@ -181,7 +181,7 @@ class UserAgent:
         dialog = await self.get_dialog()
         status_code, status_message = status.split(' ', 1)
 
-        print("Sending:", status_code)
+        print("Sending:", status)
         dialog.send_reply(int(status_code), status_message, headers=headers, **kwargs)
 
     def close(self):
