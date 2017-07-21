@@ -109,7 +109,7 @@ class UserAgent:
         self.app = Application(self)
         self.dialog = None
         self.queue = asyncio.Queue()
-        self.cseq = 1
+        self.cseq = 0
 
         self.to_uri = to_uri
         self.from_uri = from_uri
