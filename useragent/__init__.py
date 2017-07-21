@@ -175,14 +175,14 @@ class UserAgent:
             self.cseq = int(cseq)
 
         print("Sending:", method)
-        dialog.send_message(method, headers=headers, **kwargs)
+        dialog.send_message(method, headers=headers.copy(), **kwargs)
 
     async def send_response(self, status: str, *, headers=None, **kwargs):
         dialog = await self.get_dialog()
         status_code, status_message = status.split(' ', 1)
 
         print("Sending:", status)
-        dialog.send_reply(int(status_code), status_message, headers=headers, **kwargs)
+        dialog.send_reply(int(status_code), status_message, headers=headers.copy(), **kwargs)
 
     def close(self):
         if self.dialog:
