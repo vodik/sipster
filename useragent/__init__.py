@@ -24,9 +24,9 @@ class Request:
     def respond(self, *args, **kwargs):
         headers = kwargs.pop('headers', {})
         headers['CSeq'] = self.data.headers['CSeq']
-        headers['To'] = self.data.headers['To']
-        headers['From'] = self.data.headers['From']
-        return self.agent.send_response(*args, **kwargs, headers=headers)
+        return self.agent.send_response(*args, **kwargs, headers=headers,
+                                        to_details=self.data.to_details,
+                                        from_details=self.data.from_details)
 
     def __str__(self):
         return str(self.data)
@@ -49,10 +49,10 @@ class Response:
         headers = kwargs.pop('headers', {})
         cseq, _, _ = self.data.headers['CSeq'].partition(' ')
 
-        headers['To'] = self.data.headers['To']
-        headers['From'] = self.data.headers['From']
         headers['CSeq'] = f'{cseq} ACK'
-        return self.agent.send_request('ACK', *args, **kwargs, headers=headers)
+        return self.agent.send_request('ACK', *args, **kwargs, headers=headers,
+                                       to_details=self.data.to_details,
+                                       from_details=self.data.from_details)
 
     def __str__(self):
         return str(self.data)
