@@ -4,24 +4,25 @@ from useragent import Client, Server
 
 
 async def server(ua):
-    response = await ua.recv_request('INVITE')
-
-    await ua.send_response('200 OK')
+    invite = await ua.recv_request('INVITE')
+    await invite.respond('100 Trying')
+    await invite.respond('180 Ringing')
+    await invite.respond('200 OK')
     await ua.recv_request('ACK')
-
-    response = await ua.recv_request('BYE')
-    await ua.send_response('200 OK')
-
-
-async def client(ua):
-    await ua.send_request('INVITE')
-    await ua.recv_response(200, ignore=[100, 180])
-    await ua.send_request('ACK')
 
     await asyncio.sleep(1)
 
     await ua.send_request('BYE')
-    await ua.recv_response(200)
+    await ua.recv_response('200 OK')
+
+
+async def client(ua):
+    await ua.send_request('INVITE')
+    response = await ua.recv_response('200 OK', ignore=[100, 180, 183])
+    await response.ack()
+
+    bye = await ua.recv_request('BYE')
+    await bye.respond('200 OK')
 
 
 async def fastanswer():
