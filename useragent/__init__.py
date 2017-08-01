@@ -104,7 +104,7 @@ class Application(aiosip.Application):
         if key in self._dialogs:
             self._dialogs[key].receive_message(msg)
         else:
-            self.loop.call_soon(asyncio.async,
+            self.loop.call_soon(asyncio.ensure_future,
                                 self.handle_incoming(protocol, msg, addr))
 
 
