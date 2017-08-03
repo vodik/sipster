@@ -2,6 +2,7 @@ import asyncio
 from typing import Union, List
 
 import aiosip
+import multidict
 
 
 class Dialog(aiosip.Dialog):
@@ -46,6 +47,9 @@ class Response:
         return getattr(self.data, key)
 
     def ack(self, *args, **kwargs):
+        return self.respond(*args, **kwargs)
+
+    def respond(self, *args, **kwargs):
         headers = kwargs.pop('headers', {})
         cseq, _, _ = self.data.headers['CSeq'].partition(' ')
 
@@ -104,7 +108,7 @@ class Application(aiosip.Application):
         if key in self._dialogs:
             self._dialogs[key].receive_message(msg)
         else:
-            self.loop.call_soon(asyncio.async,
+            self.loop.call_soon(asyncio.ensure_future,
                                 self.handle_incoming(protocol, msg, addr))
 
 
@@ -115,6 +119,8 @@ class UserAgent:
         self.dialog = None
         self.queue = asyncio.Queue()
         self.cseq = 0
+        self.message_callback = None
+        self.method_routes = multidict.CIMultiDict()
 
         self.to_uri = to_uri
         self.from_uri = from_uri
@@ -128,10 +134,31 @@ class UserAgent:
             self.dialog = await asyncio.wait_for(self._get_dialog(), timeout=30)
         return self.dialog
 
+    def add_receive_callback(self, callback):
+        self.message_callback = callback
+
+    def add_route(self, method, callback):
+        self.method_routes[method] = callback
+
     async def recv(self, msg_type):
         dialog = await self.get_dialog()
         while True:
             msg = await asyncio.wait_for(self.queue.get(), timeout=30)
+
+            wrapped_msg = self._wrap_msg(msg)
+            if self.message_callback:
+                response = self.message_callback(wrapped_msg)
+                if response:
+                    await wrapped_msg.respond(response)
+                    continue
+
+            route = self.method_routes.get(msg.method)
+            if route:
+                response = route(wrapped_msg)
+                if response:
+                    await wrapped_msg.respond(response)
+                    continue
+
             if isinstance(msg, msg_type):
                 break
         return msg
@@ -195,6 +222,12 @@ class UserAgent:
             for transport in  self.app._transports.values():
                 transport.close()
             self.dialog = None
+
+    def _wrap_msg(self, msg):
+        if isinstance(msg, aiosip.Request):
+            return Request(self, msg)
+        else:
+            return Response(self, msg)
 
 
 class Client(UserAgent):
