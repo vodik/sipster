@@ -20,7 +20,7 @@ setup(
     license='Apache 2',
     url='https://github.com/vodik/sipster',
     description='Pure python tools for SIP testing',
-    long_description=read('README.md'),
+    long_description=read('README.rst'),
     install_requires=[
         'aiosip',
     ],
