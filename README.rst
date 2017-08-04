@@ -17,7 +17,7 @@ Example
 
 .. code-block:: bash
 
-    python -m scenarios.fastanswer
+    python -m sipster.scenarios.fastanswer
 
 ----
 TODO
