@@ -12,13 +12,13 @@ def read(fname):
 
 
 setup(
-    name='aiosip-agent-testing',
+    name='sipster',
     version='0.0.1',
     author='Simon Gomizelj',
-    author_email='sgomizelj@sangoma.com',
+    author_email='simon@vodik.xyz',
     packages=find_packages(),
     license='Apache 2',
-    url='https://github.com/vodik/aiosip-agent-testing',
+    url='https://github.com/vodik/sipster',
     description='Pure python tools for SIP testing',
     long_description=read('README.md'),
     install_requires=[

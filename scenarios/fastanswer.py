@@ -1,6 +1,6 @@
 import asyncio
 
-from useragent import Client, Server
+from sipster import Client, Server
 
 
 async def server(ua):
