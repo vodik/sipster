@@ -47,14 +47,17 @@ class Response:
         return getattr(self.data, key)
 
     def ack(self, *args, **kwargs):
-        return self.respond(*args, **kwargs)
+        return self._respond('ACK', *args, **kwargs)
 
-    def respond(self, *args, **kwargs):
+    def cancel(self, *args, **kwargs):
+        return self._respond('CANCEL', *args, **kwargs)
+
+    def _respond(self, method, *args, **kwargs):
         headers = kwargs.pop('headers', {})
         cseq, _, _ = self.data.headers['CSeq'].partition(' ')
 
-        headers['CSeq'] = f'{cseq} ACK'
-        return self.agent.send_request('ACK', *args, **kwargs, headers=headers,
+        headers['CSeq'] = f'{cseq} {method}'
+        return self.agent.send_request(method, *args, **kwargs, headers=headers,
                                        to_details=self.data.to_details,
                                        from_details=self.data.from_details)
 
@@ -121,7 +124,7 @@ class UserAgent:
         self.cseq = 0
         self.message_callback = None
         self.method_routes = multidict.CIMultiDict()
-        self.require_ack = False
+        self.require_cancel = False
 
         self.to_uri = to_uri
         self.from_uri = from_uri
@@ -191,8 +194,8 @@ class UserAgent:
 
         response = Response(self, msg)
         if msg.status_code != status_code:
-            if self.require_ack:
-                await response.ack()
+            if self.require_cancel:
+                await response.cancel()
 
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
                                f'found {msg.status_code} {msg.status_message}')
@@ -207,9 +210,9 @@ class UserAgent:
         # Make sure we track state if an ack is required or not for
         # exception recovery.
         if method == 'INVITE':
-            self.require_ack = True
+            self.require_cancel = True
         elif method == 'ACK':
-            self.require_ack = False
+            self.require_cancel = False
 
         if not 'CSeq' in headers:
             self.cseq += 1
