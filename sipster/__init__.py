@@ -195,7 +195,7 @@ class UserAgent:
                 await response.ack()
 
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
-                               f'found {msg.status_code}')
+                               f'found {msg.status_code} {msg.status_message}')
         print("Recieved:", str(msg).splitlines()[0])
         return Response(self, msg)
 
