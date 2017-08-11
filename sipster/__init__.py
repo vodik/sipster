@@ -121,6 +121,7 @@ class UserAgent:
         self.cseq = 0
         self.message_callback = None
         self.method_routes = multidict.CIMultiDict()
+        self.require_ack = False
 
         self.to_uri = to_uri
         self.from_uri = from_uri
@@ -188,7 +189,11 @@ class UserAgent:
             if msg.status_code not in ignore:
                 break
 
+        response = Response(self, msg)
         if msg.status_code != status_code:
+            if self.require_ack:
+                await response.ack()
+
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
                                f'found {msg.status_code}')
         print("Recieved:", str(msg).splitlines()[0])
@@ -198,6 +203,13 @@ class UserAgent:
         dialog = await self.get_dialog()
         if not headers:
             headers = {}
+
+        # Make sure we track state if an ack is required or not for
+        # exception recovery.
+        if method == 'INVITE':
+            self.require_ack = True
+        elif method == 'ACK':
+            self.require_ack = False
 
         if not 'CSeq' in headers:
             self.cseq += 1
