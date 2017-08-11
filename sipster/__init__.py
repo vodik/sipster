@@ -191,11 +191,12 @@ class UserAgent:
             msg = await self.recv(aiosip.Response)
             if msg.status_code not in ignore:
                 break
+            print("IGNORING", msg.status_code)
 
         response = Response(self, msg)
         if msg.status_code != status_code:
             if self.require_cancel:
-                await response.cancel()
+                await response.ack()
 
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
                                f'found {msg.status_code} {msg.status_message}')
