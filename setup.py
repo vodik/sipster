@@ -24,6 +24,11 @@ setup(
     install_requires=[
         'aiosip',
     ],
+    entry_points={
+        'console_scripts': [
+            'sipster=sipster.__main__:main'
+        ],
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'Framework :: Pytest',

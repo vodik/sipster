@@ -47,14 +47,17 @@ class Response:
         return getattr(self.data, key)
 
     def ack(self, *args, **kwargs):
-        return self.respond(*args, **kwargs)
+        return self._respond('ACK', *args, **kwargs)
 
-    def respond(self, *args, **kwargs):
+    def cancel(self, *args, **kwargs):
+        return self._respond('CANCEL', *args, **kwargs)
+
+    def _respond(self, method, *args, **kwargs):
         headers = kwargs.pop('headers', {})
         cseq, _, _ = self.data.headers['CSeq'].partition(' ')
 
-        headers['CSeq'] = f'{cseq} ACK'
-        return self.agent.send_request('ACK', *args, **kwargs, headers=headers,
+        headers['CSeq'] = f'{cseq} {method}'
+        return self.agent.send_request(method, *args, **kwargs, headers=headers,
                                        to_details=self.data.to_details,
                                        from_details=self.data.from_details)
 
@@ -119,8 +122,10 @@ class UserAgent:
         self.dialog = None
         self.queue = asyncio.Queue()
         self.cseq = 0
+        self.call_id = None
         self.message_callback = None
         self.method_routes = multidict.CIMultiDict()
+        self.require_cancel = False
 
         self.to_uri = to_uri
         self.from_uri = from_uri
@@ -166,6 +171,11 @@ class UserAgent:
     async def recv_request(self, method, ignore=[]):
         while True:
             msg = await self.recv(aiosip.Request)
+            if not self.call_id:
+                self.call_id = msg.headers['Call-ID']
+            elif self.call_id and msg.headers['Call-ID'] != self.call_id:
+                continue
+
             if msg.method not in ignore:
                 break
 
@@ -185,12 +195,21 @@ class UserAgent:
 
         while True:
             msg = await self.recv(aiosip.Response)
+            if not self.call_id:
+                self.call_id = msg.headers['Call-ID']
+            elif self.call_id and msg.headers['Call-ID'] != self.call_id:
+                continue
+
             if msg.status_code not in ignore:
                 break
 
+        response = Response(self, msg)
         if msg.status_code != status_code:
+            if self.require_cancel:
+                await response.ack()
+
             raise RuntimeError(f'Unexpected message, expected {status_code}, '
-                               f'found {msg.status_code}')
+                               f'found {msg.status_code} {msg.status_message}')
         print("Recieved:", str(msg).splitlines()[0])
         return Response(self, msg)
 
@@ -198,6 +217,13 @@ class UserAgent:
         dialog = await self.get_dialog()
         if not headers:
             headers = {}
+
+        # Make sure we track state if an ack is required or not for
+        # exception recovery.
+        if method == 'INVITE':
+            self.require_cancel = True
+        elif method == 'ACK':
+            self.require_cancel = False
 
         if not 'CSeq' in headers:
             self.cseq += 1

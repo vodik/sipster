@@ -25,19 +25,14 @@ async def client(ua):
     await bye.respond('200 OK')
 
 
-async def fastanswer():
-    uac = Client(to_uri=f'"sut" <sip:service@127.0.0.1:59361>',
-                 from_uri=f'"sipp" <sip:sipp@127.0.0.1:47398>',
-                 contact_uri=f'sip:service@127.0.0.1:47398')
+async def fastanswer(args=[]):
+    uac = Client(to_uri='"sut" <sip:service@127.0.0.1:59361>',
+                 from_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
+                 contact_uri='sip:service@127.0.0.1:47398')
 
-    uas = Server(to_uri=f'"sipp" <sip:sipp@127.0.0.1:47398>',
-                 from_uri=f'"sut" <sip:service@127.0.0.1:59361>',
-                 contact_uri=f'sip:sipp@127.0.0.1:59361')
+    uas = Server(to_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
+                 from_uri='"sut" <sip:service@127.0.0.1:59361>',
+                 contact_uri='sip:sipp@127.0.0.1:59361')
 
     await uas.listen()
     await asyncio.gather(client(uac), server(uas))
-
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(fastanswer())
-loop.close()
