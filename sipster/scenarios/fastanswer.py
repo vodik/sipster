@@ -36,8 +36,3 @@ async def fastanswer():
 
     await uas.listen()
     await asyncio.gather(client(uac), server(uas))
-
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(fastanswer())
-loop.close()
