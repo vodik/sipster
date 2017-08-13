@@ -36,7 +36,7 @@ def main(argv):
         arg_parser.error("module %r has no attribute %r" % (mod_str, func_str))
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(func())
+    loop.run_until_complete(func(args=extra_argv))
     loop.close()
 
 

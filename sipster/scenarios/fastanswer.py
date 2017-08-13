@@ -25,7 +25,7 @@ async def client(ua):
     await bye.respond('200 OK')
 
 
-async def fastanswer():
+async def fastanswer(args=[]):
     uac = Client(to_uri=f'"sut" <sip:service@127.0.0.1:59361>',
                  from_uri=f'"sipp" <sip:sipp@127.0.0.1:47398>',
                  contact_uri=f'sip:service@127.0.0.1:47398')
