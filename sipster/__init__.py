@@ -122,6 +122,7 @@ class UserAgent:
         self.dialog = None
         self.queue = asyncio.Queue()
         self.cseq = 0
+        self.call_id = None
         self.message_callback = None
         self.method_routes = multidict.CIMultiDict()
         self.require_cancel = False
@@ -170,6 +171,11 @@ class UserAgent:
     async def recv_request(self, method, ignore=[]):
         while True:
             msg = await self.recv(aiosip.Request)
+            if not self.call_id:
+                self.call_id = msg.headers['Call-ID']
+            elif self.call_id and msg.headers['Call-ID'] != self.call_id:
+                continue
+
             if msg.method not in ignore:
                 break
 
@@ -189,9 +195,13 @@ class UserAgent:
 
         while True:
             msg = await self.recv(aiosip.Response)
+            if not self.call_id:
+                self.call_id = msg.headers['Call-ID']
+            elif self.call_id and msg.headers['Call-ID'] != self.call_id:
+                continue
+
             if msg.status_code not in ignore:
                 break
-            print("IGNORING", msg.status_code)
 
         response = Response(self, msg)
         if msg.status_code != status_code:
