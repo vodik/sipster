@@ -4,6 +4,12 @@ import importlib
 import sys
 
 
+@asyncio.coroutine
+def launcher(function, args):
+    useragents = yield from function(args=args)
+    yield from asyncio.gather(*useragents)
+
+
 def main(argv):
     arg_parser = ArgumentParser(
         description="sipster Application server",
@@ -36,7 +42,7 @@ def main(argv):
         arg_parser.error("module %r has no attribute %r" % (mod_str, func_str))
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(func(args=extra_argv))
+    loop.run_until_complete(launcher(func, extra_argv))
     loop.close()
 
 

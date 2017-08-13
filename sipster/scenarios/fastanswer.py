@@ -38,4 +38,4 @@ def fastanswer(args=[]):
                  contact_uri='sip:sipp@127.0.0.1:59361')
 
     yield from uas.listen()
-    yield from asyncio.gather(client(uac), server(uas))
+    return client(uac), server(uas)

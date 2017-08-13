@@ -43,4 +43,4 @@ def options(args=[]):
     uac.add_route('OPTIONS', lambda msg: '200 OK')
 
     yield from uas.listen()
-    yield from asyncio.gather(client(uac), server(uas))
+    return client(uac), server(uas)
