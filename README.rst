@@ -2,6 +2,18 @@
 sipster
 =======
 
+
+.. image:: https://img.shields.io/pypi/v/sipster.svg
+        :target: https://pypi.python.org/pypi/sipster
+
+.. image:: https://img.shields.io/travis/vodik/sipster.svg
+        :target: https://travis-ci.org/vodik/sipster
+
+.. image:: https://pyup.io/repos/github/vodik/sipster/shield.svg
+     :target: https://pyup.io/repos/github/vodik/sipster/
+     :alt: Updates
+
+
 Toying around with using aiosip for agent/scenario testing similar to
 how SIPp works. Lost of stuff to do, but looking very, very promising.
 
