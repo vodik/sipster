@@ -32,13 +32,13 @@ def client(ua):
 
 @asyncio.coroutine
 def options(args=[]):
-    uac = Client(to_uri=f'"sut" <sip:service@127.0.0.1:59361>',
-                 from_uri=f'"sipp" <sip:sipp@127.0.0.1:47398>',
-                 contact_uri=f'sip:service@127.0.0.1:47398')
+    uac = Client(to_uri='"sut" <sip:service@127.0.0.1:59361>',
+                 from_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
+                 contact_uri='sip:service@127.0.0.1:47398')
 
-    uas = Server(to_uri=f'"sipp" <sip:sipp@127.0.0.1:47398>',
-                 from_uri=f'"sut" <sip:service@127.0.0.1:59361>',
-                 contact_uri=f'sip:sipp@127.0.0.1:59361')
+    uas = Server(to_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
+                 from_uri='"sut" <sip:service@127.0.0.1:59361>',
+                 contact_uri='sip:sipp@127.0.0.1:59361')
 
     uac.add_route('OPTIONS', lambda msg: '200 OK')
 

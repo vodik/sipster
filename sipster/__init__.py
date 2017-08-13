@@ -35,7 +35,7 @@ class Request:
     def __repr__(self):
         message = str(self)
         first_line = message[:message.find('\r\n')]
-        return f'{self.__class__.__name__}<{first_line}>'
+        return '{}<{}>'.format(self.__class__.__name__, first_line)
 
 
 class Response:
@@ -56,7 +56,7 @@ class Response:
         headers = kwargs.pop('headers', {})
         cseq, _, _ = self.data.headers['CSeq'].partition(' ')
 
-        headers['CSeq'] = f'{cseq} {method}'
+        headers['CSeq'] = '{} {}'.format(cseq, method)
         return self.agent.send_request(method, *args, **kwargs, headers=headers,
                                        to_details=self.data.to_details,
                                        from_details=self.data.from_details)
@@ -67,7 +67,7 @@ class Response:
     def __repr__(self):
         message = str(self)
         first_line = message[:message.find('\r\n')]
-        return f'{self.__class__.__name__}<{first_line}>'
+        return '{}<{}>'.format(self.__class__.__name__, first_line)
 
 
 class Application(aiosip.Application):
@@ -188,8 +188,8 @@ class UserAgent:
             self.cseq = int(cseq)
 
         if msg.method != method:
-            raise RuntimeError(f'Unexpected message, expected {method}, '
-                               f'found {msg.method}')
+            raise RuntimeError('Unexpected message, expected {}, '
+                               'found {}'.format(method, msg.method))
         print("Recieved:", str(msg).splitlines()[0])
         return Request(self, msg)
 
@@ -213,8 +213,9 @@ class UserAgent:
             if self.require_cancel:
                 yield from response.ack()
 
-            raise RuntimeError(f'Unexpected message, expected {status_code}, '
-                               f'found {msg.status_code} {msg.status_message}')
+            raise RuntimeError('Unexpected message, expected {}, '
+                               'found {} {}'.format(method, msg.status_code,
+                                                    msg.status_message))
         print("Recieved:", str(msg).splitlines()[0])
         return Response(self, msg)
 
@@ -233,7 +234,7 @@ class UserAgent:
 
         if not 'CSeq' in headers:
             self.cseq += 1
-            headers['CSeq'] = f'{self.cseq} {method}'
+            headers['CSeq'] = '{} {}'.format(self.cseq, method)
         else:
             cseq, _, _ = headers['CSeq'].partition(' ')
             self.cseq = int(cseq)
