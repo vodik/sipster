@@ -1,2 +1,1 @@
-## main dependencies
 git+https://github.com/sangoma/aiosip#egg=aiosip
