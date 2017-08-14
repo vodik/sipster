@@ -125,7 +125,7 @@ class UserAgent:
         self.cseq = 0
         self.call_id = None
         self.message_callback = None
-        self.method_routes = multidict.CIMultiDict()
+        self.method_routes = {}
         self.require_cancel = False
 
         self.to_uri = to_uri
