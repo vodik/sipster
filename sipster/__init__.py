@@ -282,6 +282,11 @@ class Client(UserAgent):
         )
         return dialog
 
+    @asyncio.coroutine
+    def run(self, scenario):
+        yield from self._get_dialog()
+        yield from scenario(self)
+
 
 class Server(UserAgent):
     def _get_dialog(self):
@@ -296,4 +301,10 @@ class Server(UserAgent):
                           contact['uri']['port'])
 
         yield from self.app.create_connection(aiosip.UDP, local_addr, None,
-                                         mode='server')
+                                              mode='server')
+
+    @asyncio.coroutine
+    def serve(self, scenario):
+        yield from self.listen()
+        yield from self._get_dialog()
+        yield from scenario(self)

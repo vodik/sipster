@@ -37,5 +37,4 @@ def fastanswer(args=[]):
                  from_uri='"sut" <sip:service@127.0.0.1:59361>',
                  contact_uri='sip:sipp@127.0.0.1:59361')
 
-    yield from uas.listen()
-    return client(uac), server(uas)
+    return (uas.serve(server), uac.run(client))
