@@ -25,9 +25,14 @@ class Request:
     def respond(self, *args, **kwargs):
         headers = kwargs.pop('headers', {})
         headers['CSeq'] = self.data.headers['CSeq']
+        headers['Call-ID'] = self.data.headers['Call-ID']
         return self.agent.send_response(*args, **kwargs, headers=headers,
                                         to_details=self.data.to_details,
                                         from_details=self.data.from_details)
+
+    @property
+    def firstline(self):
+        return str(self.data).splitlines()[0]
 
     def __str__(self):
         return str(self.data)
@@ -60,6 +65,10 @@ class Response:
         return self.agent.send_request(method, *args, **kwargs, headers=headers,
                                        to_details=self.data.to_details,
                                        from_details=self.data.from_details)
+
+    @property
+    def firstline(self):
+        return str(self.data).splitlines()[0]
 
     def __str__(self):
         return str(self.data)
@@ -124,9 +133,8 @@ class UserAgent:
         self.queue = asyncio.Queue()
         self.cseq = 0
         self.call_id = None
-        self.message_callback = None
         self.method_routes = {}
-        self.require_cancel = False
+        self.require_ack = False
 
         self.to_uri = to_uri
         self.from_uri = from_uri
@@ -141,30 +149,27 @@ class UserAgent:
             self.dialog = yield from asyncio.wait_for(self._get_dialog(), timeout=30)
         return self.dialog
 
-    def add_receive_callback(self, callback):
-        self.message_callback = callback
-
     def add_route(self, method, callback):
         self.method_routes[method] = callback
 
     @asyncio.coroutine
     def recv(self, msg_type):
-        dialog = yield from self.get_dialog()
         while True:
             msg = yield from asyncio.wait_for(self.queue.get(), timeout=30)
-
-            wrapped_msg = self._wrap_msg(msg)
-            if self.message_callback:
-                response = self.message_callback(wrapped_msg)
-                if response:
-                    yield from wrapped_msg.respond(response)
-                    continue
+            if not self.call_id:
+                self.call_id = msg.headers['Call-ID']
 
             route = self.method_routes.get(msg.method)
             if route:
+                wrapped_msg = self._wrap_msg(msg)
+
+                print("Recieved:", wrapped_msg.firstline)
+
                 response = route(wrapped_msg)
+                print("RESPONSE:", response)
                 if response:
                     yield from wrapped_msg.respond(response)
+                    print("SENT?")
                     continue
 
             if isinstance(msg, msg_type):
@@ -175,9 +180,7 @@ class UserAgent:
     def recv_request(self, method, ignore=[]):
         while True:
             msg = yield from self.recv(aiosip.Request)
-            if not self.call_id:
-                self.call_id = msg.headers['Call-ID']
-            elif self.call_id and msg.headers['Call-ID'] != self.call_id:
+            if self.call_id and msg.headers['Call-ID'] != self.call_id:
                 continue
 
             if msg.method not in ignore:
@@ -190,8 +193,9 @@ class UserAgent:
         if msg.method != method:
             raise RuntimeError('Unexpected message, expected {}, '
                                'found {}'.format(method, msg.method))
-        print("Recieved:", str(msg).splitlines()[0])
-        return Request(self, msg)
+        request = Request(self, msg)
+        print("Recieved:", request.firstline)
+        return request
 
     @asyncio.coroutine
     def recv_response(self, status, ignore=[]):
@@ -210,14 +214,15 @@ class UserAgent:
 
         response = Response(self, msg)
         if msg.status_code != status_code:
-            if self.require_cancel:
+            if self.require_ack:
                 yield from response.ack()
 
             raise RuntimeError('Unexpected message, expected {}, '
                                'found {} {}'.format(method, msg.status_code,
                                                     msg.status_message))
-        print("Recieved:", str(msg).splitlines()[0])
-        return Response(self, msg)
+        response = Response(self, msg)
+        print("Recieved:", response.firstline)
+        return response
 
     @asyncio.coroutine
     def send_request(self, method: str, *, headers=None, **kwargs):
@@ -228,9 +233,9 @@ class UserAgent:
         # Make sure we track state if an ack is required or not for
         # exception recovery.
         if method == 'INVITE':
-            self.require_cancel = True
+            self.require_ack = True
         elif method == 'ACK':
-            self.require_cancel = False
+            self.require_ack = False
 
         if not 'CSeq' in headers:
             self.cseq += 1
@@ -253,7 +258,7 @@ class UserAgent:
     def close(self):
         if self.dialog:
             self.dialog.close()
-            for transport in  self.app._transports.values():
+            for transport in self.app._transports.values():
                 transport.close()
             self.dialog = None
 
