@@ -143,12 +143,6 @@ class UserAgent:
         self.remote_addr = remote_addr
         self.local_addr = local_addr
 
-    @asyncio.coroutine
-    def get_dialog(self):
-        if not self.dialog:
-            self.dialog = yield from asyncio.wait_for(self._get_dialog(), timeout=30)
-        return self.dialog
-
     def add_route(self, method, callback):
         self.method_routes[method] = callback
 
@@ -162,14 +156,11 @@ class UserAgent:
             route = self.method_routes.get(msg.method)
             if route:
                 wrapped_msg = self._wrap_msg(msg)
-
                 print("Recieved:", wrapped_msg.firstline)
 
                 response = route(wrapped_msg)
-                print("RESPONSE:", response)
                 if response:
-                    yield from wrapped_msg.respond(response)
-                    print("SENT?")
+                    wrapped_msg.respond(response)
                     continue
 
             if isinstance(msg, msg_type):
@@ -224,9 +215,7 @@ class UserAgent:
         print("Recieved:", response.firstline)
         return response
 
-    @asyncio.coroutine
     def send_request(self, method: str, *, headers=None, **kwargs):
-        dialog = yield from self.get_dialog()
         if not headers:
             headers = {}
 
@@ -245,15 +234,14 @@ class UserAgent:
             self.cseq = int(cseq)
 
         print("Sending:", method)
-        dialog.send_message(method, headers=headers.copy(), **kwargs)
+        self.dialog.send_message(method, headers=headers.copy(), **kwargs)
 
-    @asyncio.coroutine
     def send_response(self, status: str, *, headers=None, **kwargs):
-        dialog = yield from self.get_dialog()
         status_code, status_message = status.split(' ', 1)
 
         print("Sending:", status)
-        dialog.send_reply(int(status_code), status_message, headers=headers.copy(), **kwargs)
+        self.dialog.send_reply(int(status_code), status_message,
+                               headers=headers.copy(), **kwargs)
 
     def close(self):
         if self.dialog:
@@ -271,8 +259,8 @@ class UserAgent:
 
 class Client(UserAgent):
     @asyncio.coroutine
-    def _get_dialog(self):
-        dialog = yield from self.app.start_dialog(
+    def run(self, scenario):
+        self.dialog = yield from self.app.start_dialog(
             remote_addr=self.remote_addr,
             to_uri=self.to_uri,
             from_uri=self.from_uri,
@@ -280,18 +268,10 @@ class Client(UserAgent):
             password=self.password,
             dialog=lambda *a, **kw: Dialog(self, *a, **kw)
         )
-        return dialog
-
-    @asyncio.coroutine
-    def run(self, scenario):
-        yield from self._get_dialog()
         yield from scenario(self)
 
 
 class Server(UserAgent):
-    def _get_dialog(self):
-        return self.app.dialog_ready
-
     @asyncio.coroutine
     def listen(self):
         local_addr = self.local_addr
@@ -306,5 +286,6 @@ class Server(UserAgent):
     @asyncio.coroutine
     def serve(self, scenario):
         yield from self.listen()
-        yield from self._get_dialog()
+        self.dialog = yield from asyncio.wait_for(self.app.dialog_ready,
+                                                  timeout=30)
         yield from scenario(self)
