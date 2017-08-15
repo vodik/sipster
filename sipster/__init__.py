@@ -62,7 +62,8 @@ class Response:
         cseq, _, _ = self.data.headers['CSeq'].partition(' ')
 
         headers['CSeq'] = '{} {}'.format(cseq, method)
-        return self.agent.send_request(method, *args, **kwargs, headers=headers,
+        return self.agent.send_request(method, *args, **kwargs,
+                                       headers=headers,
                                        to_details=self.data.to_details,
                                        from_details=self.data.from_details)
 
@@ -99,7 +100,8 @@ class Application(aiosip.Application):
         remote_addr = (msg.contact_details['uri']['host'],
                        msg.contact_details['uri']['port'])
 
-        proto = yield from self.create_connection(protocol, local_addr, remote_addr)
+        proto = yield from self.create_connection(protocol, local_addr,
+                                                  remote_addr)
         dlg = Dialog(self.agent,
                      app=self,
                      from_uri=msg.headers['From'],
