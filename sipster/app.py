@@ -1,6 +1,45 @@
 import asyncio
+import collections
 
 import aiosip
+
+
+class Dialplan(collections.MutableMapping):
+    def __init__(self, protocol, local_addr, remote_addr):
+        self.protocol = protocol
+        self.local_addr = local_addr
+        self.remote_addr = remote_addr
+
+    @asyncio.coroutine
+    def create_connection(self):
+        proto = yield from self.create_connection(
+            self.protocol,
+            self.local_addr,
+            self.remote_addr
+        )
+        return proto
+
+
+async def dialplan(agent, protocol, message, address):
+    if agent.local_addr:
+        local_addr = self.agent.local_addr
+    else:
+        local_addr = (msg.to_details['uri']['host'],
+                      msg.to_details['uri']['port'])
+
+    if message == 'OPTION':
+        remote_addr = addr
+    else:
+        remote_addr = (msg.contact_details['uri']['host'],
+                       msg.contact_details['uri']['port'])
+
+    dialplan = Dialplan(local_addr=local_addr,
+                        remote_addr=remote_addr)
+
+    print(local_addr, remote_addr)
+    return Dialplan(protocol=protocol,
+                    local_addr=local_addr,
+                    remote_addr=remote_addr)
 
 
 class Application(aiosip.Application):
@@ -14,19 +53,8 @@ class Application(aiosip.Application):
         if self.dialog_ready.done():
             return
 
-        if self.agent.local_addr:
-            local_addr = self.agent.local_addr
-        else:
-            local_addr = (msg.to_details['uri']['host'],
-                          msg.to_details['uri']['port'])
-
-        remote_addr = addr
-        # remote_addr = (msg.contact_details['uri']['host'],
-        #                msg.contact_details['uri']['port'])
-
-        print(local_addr, remote_addr)
-        proto = yield from self.create_connection(protocol, local_addr,
-                                                  remote_addr)
+        dialplan = yield from dialplan(self.agent, protocol, msg, addr)
+        proto = yield from dialplan.create_connection()
         yield from proto.ready
 
         dialog = Dialog(self.agent,
