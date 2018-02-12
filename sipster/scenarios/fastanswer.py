@@ -1,7 +1,5 @@
 import asyncio
 
-from sipster import Client, Server
-
 
 async def server(ua):
     invite = await ua.recv_request('INVITE')
@@ -25,14 +23,13 @@ async def client(ua):
     await bye.respond('200 OK')
 
 
-async def fastanswer(args=[]):
-    uac = Client(to_uri='"sut" <sip:service@127.0.0.1:59361>',
-                 from_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
-                 contact_uri='sip:service@127.0.0.1:47398')
+async def fastanswer(app, args=[]):
+    uac = await app.add_ua(to_uri='"sut" <sip:service@127.0.0.1:59361>',
+                           from_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
+                           contact_uri='sip:service@127.0.0.1:47398')
 
-    uas = Server(to_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
-                 from_uri='"sut" <sip:service@127.0.0.1:59361>',
-                 contact_uri='sip:sipp@127.0.0.1:59361')
+    uas = await app.add_ua(to_uri='"sipp" <sip:sipp@127.0.0.1:47398>',
+                           from_uri='"sut" <sip:service@127.0.0.1:59361>',
+                           contact_uri='sip:sipp@127.0.0.1:59361')
 
-    await uas.listen()
     return client(uac), server(uas)

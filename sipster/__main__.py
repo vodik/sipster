@@ -3,9 +3,12 @@ import asyncio
 import importlib
 import sys
 
+from . import Application
+
 
 async def launcher(function, args):
-    useragents = await function(args=args)
+    app = Application()
+    useragents = await function(app, args=args)
     await asyncio.gather(*useragents)
 
 
