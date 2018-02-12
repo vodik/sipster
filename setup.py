@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import os
 import codecs
@@ -8,7 +7,8 @@ from setuptools import setup, find_packages
 
 def read(fname):
     file_path = os.path.join(os.path.dirname(__file__), fname)
-    return codecs.open(file_path, encoding='utf-8').read()
+    with open(file_path, encoding='utf-8') as readme:
+        return readme.read()
 
 
 setup(

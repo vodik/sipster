@@ -1,0 +1,8 @@
+[requires]
+platform = "linux"
+
+[dev-packages]
+pytest = ">= 3.4.0"
+
+[packages]
+aiosip = { git = 'https://github.com/sangoma/aiosip.git' }

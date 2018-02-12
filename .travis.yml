@@ -1,12 +1,18 @@
+sudo: false
 language: python
-dist: precise
 python:
   - 3.5
   - 3.6
+  - 3.7-dev
+
+matrix:
+  allow_failures:
+    - python: 3.5
+    - python: "3.7-dev"
 
 install:
-  - pip install --upgrade setuptools pip
-  - pip install --upgrade pytest pytest-asyncio -rrequirements.txt .
+  - pip install pipenv
+  - pipenv install --dev
 
 script:
-  - python -m pytest tests/
+  - pipenv run pytest tests/
