@@ -2,18 +2,29 @@ import asyncio
 import aiosip
 
 
+class Request:
+    def __init__(self, dialog, msg):
+        self._dialog = dialog
+        self._msg = msg
+
+    async def respond(self, status_code):
+        await self._dialog.reply(self._msg, status_code)
+
+
 class UserAgent:
     def __init__(self, server, peer, to_details, from_details, contact_details):
         self._server = server
         self._peer = peer
         self._dialog = None
+        self._queue = asyncio.Queue()
         self.to_details = to_details
         self.from_details = from_details
         self.contact_details = contact_details
 
     async def _default_handler(self, dialog, request):
-        print(request.payload)
-        await dialog.reply(request, status_code=200)
+        print("CAUGHT", request)
+        assert dialog == self._dialog
+        await self._queue.put(Request(dialog, request))
 
     async def _get_dialog(self):
         if not self._dialog:
@@ -21,18 +32,12 @@ class UserAgent:
                 from_details=self.from_details,
                 to_details=self.to_details,
                 contact_details=self.contact_details,
-                router={'*', self._default_handler}
+                router=aiosip.Router(default=self._default_handler)
             )
         return self._dialog
 
-    # def add_receive_callback(self, callback):
-    #     ...
-
-    # def add_route(self, method, callback):
-    #     ...
-
     def recv_request(self, method, ignore=[]):
-        return asyncio.Future()
+        return self._queue.get()
 
     def recv_response(self, status, ignore=[]):
         return asyncio.Future()
@@ -51,9 +56,20 @@ class UserAgent:
         ...
 
 
-class Application():
+class Application(aiosip.Application):
     def __init__(self):
-        self._app = aiosip.Application()
+        super().__init__()
+        self._useragents = {}
+
+    async def _dispatch(self, protocol, msg, addr):
+        connector = self._connectors[type(protocol)]
+        peer = await connector.get_peer(protocol, addr)
+        key = msg.headers['Call-ID']
+        dialog = peer._dialogs.get(key)
+        if not dialog:
+            useragent = self._useragents[protocol]
+            dialog = await useragent._get_dialog()
+        await dialog.receive_message(msg)
 
     async def add_ua(self, *, to_uri, from_uri, contact_uri,
                      protocol=aiosip.UDP):
@@ -64,6 +80,9 @@ class Application():
         local_addr = contact_details['uri']['host'], contact_details['uri']['port']
         remote_addr = to_details['uri']['host'], to_details['uri']['port']
 
-        server = await self._app.run(local_addr=local_addr, protocol=protocol)
-        peer = await self._app.connect(remote_addr=remote_addr, protocol=protocol)
-        return UserAgent(server, peer, to_details, from_details, contact_details)
+        server = await self.run(local_addr=local_addr, protocol=protocol)
+        peer = await self.connect(remote_addr=remote_addr, protocol=protocol)
+
+        agent = UserAgent(server, peer, to_details, from_details, contact_details)
+        self._useragents[server] = agent
+        return agent
