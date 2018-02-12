@@ -2,24 +2,24 @@ import asyncio
 
 
 async def server(ua):
-    invite = await ua.recv_request('INVITE')
+    invite = await ua.recv('INVITE')
     await invite.respond(100)
     await invite.respond(180)
     await invite.respond(200)
-    await ua.recv_request('ACK')
+    await invite.acked()
 
     await asyncio.sleep(1)
 
-    await ua.send_request('BYE')
-    await ua.recv_response(200)
+    bye = await ua.send('BYE')
+    await bye.recv(200)
 
 
 async def client(ua):
-    await ua.send_request('INVITE')
-    response = await ua.recv_response(200, ignore=[100, 180, 183])
-    await response.ack()
+    invite = await ua.send('INVITE')
+    await invite.recv(200, ignore=[100, 180, 183])
+    await invite.ack()
 
-    bye = await ua.recv_request('BYE')
+    bye = await ua.recv('BYE')
     await bye.respond(200)
 
 

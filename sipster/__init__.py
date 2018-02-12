@@ -2,13 +2,24 @@ import asyncio
 import aiosip
 
 
-class Request:
+class InboundMsg:
     def __init__(self, dialog, msg):
         self._dialog = dialog
         self._msg = msg
 
     async def respond(self, status_code):
         await self._dialog.reply(self._msg, status_code)
+
+    async def acked(self):
+        return asyncio.Future()
+
+
+class OutboundMsg:
+    async def recv(self, status_code, ignore=[]):
+        pass
+
+    async def ack(self):
+        pass
 
 
 class UserAgent:
@@ -24,7 +35,7 @@ class UserAgent:
     async def _default_handler(self, dialog, request):
         print("CAUGHT", request)
         assert dialog == self._dialog
-        await self._queue.put(Request(dialog, request))
+        await self._queue.put(InboundMsg(dialog, request))
 
     async def _get_dialog(self):
         if not self._dialog:
@@ -36,24 +47,12 @@ class UserAgent:
             )
         return self._dialog
 
-    def recv_request(self, method, ignore=[]):
+    def recv(self, method, ignore=[]):
         return self._queue.get()
 
-    def recv_response(self, status, ignore=[]):
-        return asyncio.Future()
-
-    async def send_request(self, method: str, *, headers=None, **kwargs):
+    async def send(self, method: str, *, headers=None, **kwargs):
         dialog = await self._get_dialog()
         await dialog.request(method, headers=headers, **kwargs)
-
-    async def send_response(self, status: str, *, headers=None, **kwargs):
-        if not self._dialog:
-            raise RuntimeError("No dialog has been established yet")
-
-        raise NotImplementedError("can't")
-
-    def close(self):
-        ...
 
 
 class Application(aiosip.Application):
