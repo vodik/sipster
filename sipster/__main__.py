@@ -4,10 +4,9 @@ import importlib
 import sys
 
 
-@asyncio.coroutine
-def launcher(function, args):
-    useragents = yield from function(args=args)
-    yield from asyncio.gather(*useragents)
+async def launcher(function, args):
+    useragents = yield function(args=args)
+    await asyncio.gather(*useragents)
 
 
 def main(argv):
