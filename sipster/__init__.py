@@ -15,8 +15,12 @@ class InboundMsg:
 
 
 class OutboundMsg:
+    def __init__(self, dialog, msg):
+        self._dialog = dialog
+        self._msg = msg
+
     async def recv(self, status_code, ignore=[]):
-        pass
+        return asyncio.Future()
 
     async def ack(self):
         pass
@@ -52,7 +56,10 @@ class UserAgent:
 
     async def send(self, method: str, *, headers=None, **kwargs):
         dialog = await self._get_dialog()
-        await dialog.request(method, headers=headers, **kwargs)
+        request = dialog._prepare_request(method, headers=headers, **kwargs)
+        msg = OutboundMsg(dialog, request)
+        await dialog.send(request)
+        return msg
 
 
 class Application(aiosip.Application):
